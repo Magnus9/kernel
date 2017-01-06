@@ -1,0 +1,187 @@
+
+This file contains notes about the BIOS IVT calls that
+is registered. The AH register contains sub functionality
+for each subdomain (INT X). It is recommended to use the pusha
+and popa instruction to preserve register values.
+
+BIOS INT 10h (Video interrupts).
+---------------------------------------------------------------
+AH: 03h - Read cursor position and size.
+On entry:
+    AH: 03h.
+    BH: Display page number.
+Returns:
+    CH:     Cursor start line.
+    CL:     Cursor end line.
+    DH:     Row.
+    DL:     Column.
+Registers destroyed:
+    AX, SP, BP, SI, DI.
+
+AH: 13h - Write character string.
+On entry:
+    AH:     13h.
+    AL:     Subservice (0-3).
+    BH:     Display page number.
+    BL:     Attribute (Subservices 0 and 1).
+    CX:     Length of string.
+    DH:     Row position where string is to be written.
+    DL:     Column position where string is to be written.
+    ES:BP:  Pointer to string to write.
+Returns:
+    None.
+Registers destroyed:
+    AX, SP, BP, SI, DI.
+
+AH: 0ah - Write character at cursor a specified number of times.
+On entry:
+    AH:     0ah.
+    AL:     ASCII value of character.
+    BH:     Display page number (text mode only).
+    CX:     Number of times to write character.
+Returns:
+    None.
+Registers destroyed:
+    AX, SP, BP, SI, DI
+
+AH: 0ch - Write pixel.
+On entry:
+    AH:     0ch.
+    AL:     Pixel color.
+    CX:     Horizontal position of pixel.
+    DX:     Vertical position of pixel.
+    BH:     Display page number (Graphics modes with more than 1 page).
+Returns:
+    None.
+Registers destroyed:
+    AX, SP, BP, SI, DI.
+Information:
+    CX (Horizontal) DX (Vertical) AL (Pixel Color) BH (Page Number).
+        0-639           0-349       0-15                0-1
+Notes:
+    If the pixel color (AL) is specified with bit 7 set,
+    the color bits of the pixel are XORed with the color bits
+    of the current pixel at the specified coordinate.
+
+BIOS INT 13h (Disk services).
+---------------------------------------------------------------
+AH: 00h - Reset fixed disk/diskette system.
+Prelude:
+    Resets the fixed disk or diskette controller and drive,
+    forcing recalibration of the read/write head.
+On entry:
+    AH:     00h.
+    DL:     Drive number.
+Returns:
+    AH:     Status of operation.
+    CF:     Set if error, cleared otherwise.
+Notes:
+    If DL is greater than or equal to 80h, the floppy
+    diskette controller is reset, and then the fixed
+    disk controller is reset. The status returned in AH
+    in this case is the status of the fixed disk; to get
+    the status of the floppy diskette controller, examine
+    memory location 0:441h.
+
+    If an error is reported by the disk BIOS routines,
+    use this service to reset the floppy and/or fixed
+    disk controllers, and retry the operation.
+
+    It is said that before interacting with a floppy disk
+    drive for the first time, the floppy disk controller
+    must be reset to a known state using this BIOS call.
+    (Fixed disks aswell?).
+
+AH: 01h - Get disk system status.
+On entry:
+    AH:     01h.
+    DL:     Drive number.
+Returns:
+    AH:     Status of operation.
+    CF:     Set if error, otherwise cleared.
+Status of operation codes:
+    AH             Meaning
+    FFh            Sense operation failed             (fixed)
+    E0h            Status error                       (fixed)
+    CCh            Write fault                        (fixed)
+    BBh            Undefined error                    (fixed)
+    80h            Drive not ready
+    40h            Seek failure
+    20h            Controller failure
+    11h            ECC corrected data error           (fixed)
+    10h            CRC or ECC data error
+    0Fh            DMA arbitration level out of range (fixed)
+    0Eh            Control data address mark detected (fixed)
+    0Dh            Invalid number sectors on format   (fixed)
+    0Ch            Media type not found               (floppy)
+    0Bh            Bad cylinder found                 (fixed)
+    0Ah            Bad sector flag detected           (fixed)
+    09h            Attempt to DMA across a 64K boundary
+    08h            DMA overrun
+    07h            Drive parameter activity failed    (fixed)
+    06h            Diskette change line active        (floppy)
+    05h            Reset failed                       (fixed)
+    04h            Sector not found
+    03h            Attempt to write on write-protected disk
+    02h            Address mark not found
+    01h            Invalid command
+    00h            No error
+Notes:
+    The most recent diskette operation status is found
+    at 0:441h. The most recent fixed disk operation status
+    is at 0:474h.
+
+AH: 02h - Read sectors into memory.
+On entry:
+    AH:     02h.
+    AL:     Number of sectors to read.
+    CH:     Cylinder number (10 bit value; upper 2 bits in CL).
+    CL:     Starting sector number.
+    DH:     Head number.
+    DL:     Drive number.
+    ES:BX   Linear address of memory buffer.
+Returns:
+    AH:     Status of operation.
+    AL:     Number of sectors read.
+    CF:     Set if error, else cleared.
+Notes:
+    Values in DL less than 80h specify floppy disks;
+    values greater than or equal to 80h specify fixed disks.
+
+    The cylinder number is a ten-bit quantity (0 through 1023).
+    Its most significant two bits are in bits 7 and 6 of CL. The
+    remaining eight bits are in CH. The starting sector number
+    fits in the low-order portion (lower 6 bits) of CL.
+
+    The value returned in AL (number of sectors read) may not
+    give the correct number of sectors, even though no error
+    has occurred. Use the results of the Carry flag and
+    AH (status flag) to determine the status of the operation.
+
+    Sectors are addressed using CHS (cylinder, head, sector).
+
+
+Kernel low physical memory map.
+---------------------------------------------------------------
+0x7c00                                      @ Boot sector (1st sector).
+0x00    (0000:0000) - 0x3ff     (0000:03ff) @ Interrupt Vector Table.
+0x400   (0000:0400) - 0x4ff     (0000:04ff) @ BIOS Data Area.
+0x500   (0000:0500) - 0x9fbff   (9000:fbff) @ Real Mode Free Memory.
+0x9fc00 (9000:fc00) - 0x9ffff   (9000:ffff) @ Extended BIOS Data Area.
+0xa0000 (a000:0000) - 0xbffff   (b000:ffff) @ Video Memory.
+0xc0000 (c000:0000) - 0xc7fff   (c000:7fff) @ Video BIOS.
+0xc8000 (c000:8000) - 0xeffff   (e000:ffff) @ Memory Mapped I/O.
+0xf0000 (f000:0000) - 0xfffff   (f000:ffff) @ BIOS.
+
+After the bios segment you reach high memory (0x100000) 1MB. This is the
+proper place to place your kernel if the size of it increments at a steadily
+rate.
+
+Canonicalizing %CS:%EIP.
+---------------------------------------------------------------
+The BIOS loads the boot sector of the boot disk
+at linear address 0x7c00 (0000:7c00). However certain
+odd BIOSes actually begin execution at 07c0:0000. To deal with
+this arbitrary outcome, the first task of any bootloader is to
+canonicalize %CS:%EIP to a known segment:offset pair that the rest
+of the code depends on.
