@@ -16,19 +16,19 @@ void idt_init(void)
 void idt_init_descriptor(struct idt_descriptor *desc,
                          u32 base)
 {
-    desc->off_low = base & 0xffff;
+    desc->base_low = base & 0xffff;
     desc->selector = 0x08;
     desc->zero = 0;
     desc->attr = IDT_INTERRUPT_MASK | IDT_DPL0;
-    desc->off_high = base & 0xffff0000;
+    desc->base_high = base >> 16;
 }
 
-void lidt(void *base)
+void lidt(struct idt_base *base)
 {
-    __asm__ __volatile__ ("lidt %0" : : "m" (base));
+    __asm__ __volatile__ ("lidt %0" : : "m" (*base));
 }
 
 void sidt(struct idt_base *base)
 {
-    __asm__ __volatile__ ("sidt %0" : "=m" (base));
+    __asm__ __volatile__ ("sidt %0" : "=m" (*base));
 }

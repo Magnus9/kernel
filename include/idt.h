@@ -21,15 +21,16 @@ struct idt_base {
 } __attribute__ ((packed));
 
 struct idt_descriptor {
-    u16 off_low;
+    u16 base_low;
     u16 selector;
     u8 zero;
     u8 attr;
-    u16 off_high;
+    u16 base_high;
 };
 void idt_init(void);
 void idt_init_descriptor(struct idt_descriptor *desc,
                          u32 base);
-void lidt(void *base);
+void lidt(struct idt_base *base);
+void sidt(struct idt_base *base);
 
 #endif
